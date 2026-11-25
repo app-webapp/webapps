@@ -48,6 +48,9 @@
     align-items:center;justify-content:center;position:relative;overflow:hidden;user-select:none;
     transition:transform .15s, box-shadow .2s}
   .cell .num{font-size:40px;font-weight:900;line-height:1;font-variant-numeric:tabular-nums}
+  .cell .rbig{font-size:clamp(17px,6vw,28px);font-weight:900;line-height:1;letter-spacing:-.02em;white-space:nowrap;font-variant-numeric:tabular-nums;position:relative;z-index:2}
+  .cell .rbig small{display:block;font-size:11px;font-weight:700;letter-spacing:.1em;color:#6b6590;margin-top:6px;text-align:center}
+  .cell.open .rbig small{color:var(--mute)}
   .cell .rng{font-size:11px;color:#6b6590;margin-top:4px;font-variant-numeric:tabular-nums}
   .cell.wait{box-shadow:0 0 0 3px var(--pink),0 0 18px rgba(255,79,163,.6);animation:pulse 1.4s infinite}
   @keyframes pulse{50%{transform:scale(.96)}}
@@ -81,7 +84,7 @@
   .sheetbox{width:min(460px,100%);background:var(--panel);border:1px solid var(--line);border-bottom:0;border-radius:20px 20px 0 0;
     padding:18px 18px calc(18px + env(safe-area-inset-bottom));text-align:center;animation:up .18s ease-out}
   @keyframes up{from{transform:translateY(40px);opacity:0}}
-  .cfnum{font-size:56px;font-weight:900;line-height:1}
+  .cfnum{font-size:clamp(40px,13vw,56px);white-space:nowrap;font-weight:900;line-height:1}
   .cfrange{font-size:13px;color:var(--mute);margin-top:4px}
   .sheetbox h2{font-size:18px;margin:12px 0 16px}
   .cfbtns{display:grid;grid-template-columns:1fr 1.4fr;gap:10px}
@@ -144,8 +147,8 @@
 
   <details class="rules">
     <summary>ルール</summary>
-    ・各マスの数字の <b>±<span class="tolv"></span>点</b> 以内の点数が出たら、そのマスをタップして「開ける」を押します。<br>
-    ・1回の採点で開けられるのは <b>1マスだけ</b>。範囲が重なる場合は、まだ開いていないマスのうち数字が一番近いマスを開けます（同じ近さならどちらか1つ）。<br>
+    ・マスに書かれた範囲（○○〜△△点）の点数が出たら、そのマスをタップして「開ける」を押します。<br>
+    ・1回の採点で開けられるのは <b>1マスだけ</b>。範囲が重なる場合は、まだ開いていないマスのうち範囲の真ん中に一番近いマスを開けます（同じ近さならどちらか1つ）。<br>
     ・間違えて開けたマスは、もう一度タップすると閉じられます。<br>
     ・真ん中は <b>FREE</b>（最初から開いています）。<br>
     ・縦・横・斜めのいずれか1列がそろえばビンゴ！<br>
@@ -427,7 +430,7 @@ function render(flashIdx){
       board.appendChild(d); return;
     }
     d.setAttribute('aria-label', `${n}のマス（${isOpen?'開いている':'未開封'}）`);
-    d.innerHTML = `<div class="num">${n}</div><div class="rng">${rangeText(n)}</div>`
+    d.innerHTML = `<div class="rbig">${rangeText(n)}<small>点</small></div>`
       + (isOpen ? `<div class="got">OPEN</div>` : '');
     d.onclick = ()=>askConfirm(i);
     board.appendChild(d);
@@ -441,7 +444,7 @@ function render(flashIdx){
 
   const b = $('banner');
   b.className='banner';
-  const waitChips = [...waits].map(i=>`<span class="chip">${state.nums[i]}（${rangeText(state.nums[i])}）</span>`).join('');
+  const waitChips = [...waits].map(i=>`<span class="chip">${rangeText(state.nums[i])}点</span>`).join('');
   if(bingo.length){
     b.classList.add('bingo');
     b.innerHTML = `<span class="big">BINGO!${bingo.length>1?' ×'+bingo.length:''}</span>${bingo.length}ラインそろいました`
@@ -458,7 +461,7 @@ function render(flashIdx){
 
   const h = $('history');
   h.innerHTML = state.hits.length
-    ? `開けた順番<ol>${state.hits.map(x=>`<li>「${state.nums[x.i]}」のマス</li>`).join('')}</ol>`
+    ? `開けた順番<ol>${state.hits.map(x=>`<li>「${rangeText(state.nums[x.i])}」のマス</li>`).join('')}</ol>`
     : '';
 }
 function needForReach(){
@@ -476,8 +479,8 @@ function askConfirm(i){
   target = i;
   const n = state.nums[i], isOpen = openedSet().has(i);
   document.querySelectorAll('.cell').forEach((c,k)=>c.classList.toggle('selected', k===i));
-  $('cfNum').textContent = n;
-  $('cfRange').textContent = `${rangeText(n)}点`;
+  $('cfNum').textContent = rangeText(n);
+  $('cfRange').textContent = 'この範囲の点数が出たら開けられます';
   $('cfTitle').textContent = isOpen ? 'このマスを閉じますか？' : 'このマスを開けますか？';
   $('cfOk').textContent = isOpen ? '閉じる' : '開ける';
   $('cfOk').classList.toggle('danger', isOpen);
@@ -495,10 +498,10 @@ $('cfOk').onclick = ()=>{
   const before = lineInfo().bingo.length;
   if(openedSet().has(i)){
     state.hits = state.hits.filter(h=>h.i!==i);
-    setMsg(`「${n}」のマスを閉じました`);
+    setMsg(`「${rangeText(n)}」のマスを閉じました`);
   } else {
     state.hits.push({i});
-    setMsg(`「${n}」のマスを開けました`,'ok');
+    setMsg(`「${rangeText(n)}」のマスを開けました`,'ok');
   }
   saveState(); closeConfirm(); render(i);
   if(lineInfo().bingo.length>before) confetti();
@@ -510,7 +513,7 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeConfirm(); }
 $('undo').onclick = ()=>{
   if(!state.hits.length){ setMsg('戻せる操作がありません','ng'); return; }
   const h = state.hits.pop(); saveState();
-  setMsg(`「${state.nums[h.i]}」のマスを閉じました`); render();
+  setMsg(`「${rangeText(state.nums[h.i])}」のマスを閉じました`); render();
 };
 let confirmNew = false;
 $('newCard').onclick = ()=>{
